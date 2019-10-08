@@ -1,0 +1,21 @@
+# !/bin/bash
+# ls /jukebox/hasson/claire/tennis/subjects/dcm/| grep "Pair[99]" > subjlist.txt
+# for f in `cat subjlist.txt`; do ./dcm2nii4D.sh ${f}; done
+# covert dicom to nifti
+subjdir=/jukebox/hasson/claire/tennis/subjects/
+
+# dcm2nii
+mkdir $subjdir/nii3D/$1/
+files=$subjdir/dcm/$1/*IMA
+for f in $files
+do
+dcm2nii -v N -e N -f Y -p N -d N -i N -o $subjdir/nii3D/$1/ $f
+done
+
+# 3D nii to 4D nii
+keywords=`ls $subjdir/nii3D/$1/* | awk 'BEGIN{FS="_0"}{ print $1 }' | sort | uniq` 
+for ks in $keywords 
+ do 
+fslmerge -t $ks `imglob -oneperimage $ks*`
+mv $ks.nii.gz $subjdir/$1/NII/
+done

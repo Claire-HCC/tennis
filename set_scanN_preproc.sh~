@@ -1,0 +1,11 @@
+# !/bin/bash
+
+subjdir=/jukebox/hasson/claire/tennis/
+scani='1 2 3 4 5 6'
+n=`cat ${subjdir}/scanN.txt | grep ${1}`
+IFS=' 0' read -a n2 <<< "$n"
+for i in $scani
+do
+# echo "${n2[$i]}"
+sed -i 's/set fmri(npts) 216/set fmri(npts) ${n2[${i}]}/g' ${subjdir}/subjects/${1}/fsf/preproc0${i}.fsf > test.fsf
+done

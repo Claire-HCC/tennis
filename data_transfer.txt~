@@ -1,0 +1,77 @@
+% copy data from ntu to rondo
+% in rondo head 
+tmux
+scp -r hcchang73@140.119.165.24:/autofs/space/maki6_001/users/r04945014/HyperScanning/Tennis/MRI_Interpolated_Dicom/ ~ 
+% leave/detach the tmux session by typing Ctrl+B and then D
+tmux attach
+
+% move data data from rondo head to jukebox which can only be access through node
+qrsh
+mv ~/0817_Pair4 /jukebox/hasson/claire/tennis_raw/dcm_wrongInfo
+
+pni_matlab -desktop
+% discom info is wrong after interpolation (done by TaiYu)
+% to correct dicom info
+dcminfo_correction
+
+% in terminal
+ls /jukebox/hasson/claire/tennis/dcm_raw/| grep "Pair[99]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./dcm2nii4D.sh ${f}; done
+wait
+ls /jukebox/hasson/claire/tennis_raw/dcm_notInterpolated/| grep "Pair[99]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./dcm2niiT1.sh ${f}; done
+
+% scaffold for every subject 
+ls /jukebox/hasson/claire/tennis_raw/dcm/| grep "Pair[0-9]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./scaffold ${f}; done
+
+# copy raw data
+for f in `cat subjlist.txt`; do
+mkdir /jukebox/hasson/claire/tennis/subjects/$f/data/nifti
+cp -r /jukebox/hasson/claire/tennis_raw/nifti/${f}* /jukebox/hasson/claire/tennis/subjects/$f/data/nifti
+done
+
+% the total numbe of volumn was set as 216 for each scan in
+% prototype/copy/fsf/preproc.fsf.template
+
+% in individual subject directory
+for f in `cat subjlist.txt`; do
+cd ./subjects/${f}
+chmod +x ./prep.sh
+./prep.sh
+cd ../..
+done
+
+%count scanN
+./scripts_claire/epi_scanN.sh
+% set the correct scanN in preproc*.fsf 
+for f in `cat subjlist.txt`; do
+./scripts_claire/set_scanN_preproc.sh ${f}
+done
+
+% scalp T1
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}/data/nifti
+inputname=`ls *_t1.nii.gz`
+outputname=${inputname//_t1.nii/_t1_brain.nii}
+bet ${inputname} ${outputname} -f 0.35
+cd /jukebox/hasson/claire/tennis/
+done
+
+% to check the scalp results
+module load fsl/5
+fslview
+
+% analyze
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+./analyze.sh
+done
+
+% map to mni space
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+./scripts/apply-transform.sh
+done
+
+

@@ -1,0 +1,14 @@
+
+expdir = '/jukebox/hasson/claire/tennis/MRI/';
+subjdir=[expdir '/subjects/'];
+dcmdir_nI=[subjdir '/dcm_notInterpolated/'];
+dcmdir_wI=[subjdir '/dcm_wrongInfo/'];
+dcmdir=[subjdir '/dcm/'];
+niidir=[subjdir '/nii/'];
+
+subjects=...
+    {'0817_Pair4',...
+'0824_Pair5',...
+0831_Pair6,...
+0907_Pair7  1005_Pair8  1012_Pair9
+};

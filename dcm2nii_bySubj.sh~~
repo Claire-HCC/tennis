@@ -1,0 +1,8 @@
+#!/bin/bash
+for path in /jukebox/hasson/claire/tennis/MRI/subjects/test/"$1"; do
+# [-d "{path}"] || continue
+dirname="$(basename "${path}" )"
+print $dirname
+dcm2nii -d n -i n -o . $dirname
+# dcm2nii -d n -i n -o /jukebox/hasson/claire/tennis/MRI/subjects/nii/
+done

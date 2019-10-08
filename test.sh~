@@ -1,0 +1,22 @@
+# !/bin/bash
+# covert dicom to nifti
+subjdir=/jukebox/hasson/claire/tennis/MRI/subjects/
+mkdir $subjdir/nii3D/$1/
+mkdir $subjdir/nii/$1/
+ files=$subjdir/dcm/$1/*IMA
+ for f in $files
+ do
+ echo $f
+ dcm2nii -v N -e N -f Y -p Y -d N -i N -o $subjdir/nii3D/$1/ $f
+ done
+
+# convert 3D nifti to 4D nifti
+keywords=`ls $subjdir/nii3D/$1/| awk 'BEGIN{FS="_0"}{ print $1 }'| sort|uniq`
+for kw in $keywords
+do
+fslmerge -t $subjdir/nii/$1/$keywords `ls $subjdir/nii3D/test/$keywords*`
+done
+
+
+
+

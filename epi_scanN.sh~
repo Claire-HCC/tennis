@@ -1,0 +1,24 @@
+# !/bin/bash
+# produce scanN for each subject
+
+subjdir=/jukebox/hasson/claire/tennis_raw/
+epis='coop1 coop2 comp1 comp2 basecoop basecomp'
+subjlist=`ls -d $subjdir/dcm/ | awk 'BEGIN{FS="_0"}{ print $1 }' | sort | uniq`
+echo "subject coop1 coop2 comp1 comp2 basecoop basecomp" > ${subjdir}/../tennis/scanN.txt
+
+for s in $subjlist
+do
+
+n=""
+ns=""
+for e in $epis
+do
+n=`ls $subjdir/dcm/${s}/*${e}* | awk 'BEGIN{FS="_"}{ print $7 }' | egrep -o [0-9]+|sort | tail -n 1`
+ns="${ns} ${n}"
+
+done
+
+echo ${s}_${ns} >> ${subjdir}/../tennis/scanN.txt
+
+done
+

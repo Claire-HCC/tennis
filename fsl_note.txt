@@ -1,0 +1,169 @@
+% turn on Xming on my px to use graphical interfact for app such as matlab (pni_matlab --desktop).
+% test with xclock
+
+% copy data from ntu to rondo
+% in rondo head 
+tmux
+scp -r hcchang73@140.119.165.24:/autofs/space/maki6_001/users/r04945014/HyperScanning/Tennis/MRI_Interpolated_Dicom_Double/ ~ 
+% leave/detach the tmux session by typing Ctrl+B and then D
+tmux attach
+
+% move data data from rondo head to jukebox which can only be access through node
+qrsh
+mv ~/0817_Pair4 /jukebox/hasson/claire/tennis_raw/dcm_wrongInfo
+
+% copy original data
+scp -r hcchang73@140.119.165.24:/autofs/space/maki6_001/users/r04945014/HyperScanning/Tennis/MRI_OriginalData_Dicom/1019_Pair10 ~ 
+mv ~/1019_Pair10 /jukebox/hasson/claire/tennis_raw/dcm_notInterpolated
+
+pni_matlab -desktop
+% discom info is wrong after interpolation (done by TaiYu)
+% to correct dicom info
+dcminfo_correction
+
+
+%%%%%%%% here
+% in terminal. This process deelete the first 10 scans and trim the remaing scans so only 200 left.
+ls /jukebox/hasson/claire/tennis_raw/dcm/| grep "Pair[0-9]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./dcm2nii4D.sh ${f}; done
+
+ls /jukebox/hasson/claire/tennis_raw/dcm_notInterpolated/| grep "Pair[0-9]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./dcm2niiT1.sh ${f}; done
+
+% scaffold for every subject 
+ls /jukebox/hasson/claire/tennis_raw/dcm/| grep "Pair[0-9]" > subjlist.txt
+for f in `cat subjlist.txt`; do ./scaffold ${f}; done
+
+# copy raw data
+for f in `cat subjlist.txt`; do
+mkdir /jukebox/hasson/claire/tennis/subjects/$f/data/nifti
+cp -r /jukebox/hasson/claire/tennis_raw/nifti/${f}* /jukebox/hasson/claire/tennis/subjects/$f/data/nifti
+done
+ls /jukebox/hasson/claire/tennis/subjects/| grep "Pair[0-9]" > subjlist.txt
+for f in `cat subjlist.txt`; do
+cp -r /jukebox/hasson/claire/tennis_raw/nifti/${f}*t1* /jukebox/hasson/claire/tennis/subjects/$f/data/nifti
+done
+
+% in individual subject directory
+for f in `cat subjlist.txt`; do
+cd ./subjects/${f}
+chmod +x ./*.sh
+chmod +x ./scripts/*.sh
+./prep.sh
+cd ../..
+done
+
+% scalp T1
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}/data/nifti
+inputname=`ls *_t1.nii.gz`
+outputname=${inputname//_t1.nii/_t1_brain.nii}
+bet ${inputname} ${outputname} -f 0.35
+cd /jukebox/hasson/claire/tennis/
+done
+
+% scalp epi
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}/data/nifti
+inputname=`ls *_epi_*.nii.gz`
+for i in ${inputname}; do
+outputname=${i//.nii/_brain.nii}
+bet ${i} ${outputname} -f 0.5
+done
+cd /jukebox/hasson/claire/tennis/
+done
+
+% to check the scalp results
+fsl
+fslview
+
+% analyze
+for f in `cat subjlist_temp.txt | grep -v "#"`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+./analyze.sh
+done
+
+% map to mni space
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+chmod +x ./scripts/apply-transform.sh
+./scripts/apply-transform.sh
+done
+
+% run ica
+for f in `cat subjlist_temp.txt | grep -v "#"`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+./analyze_melodic.sh
+done
+
+% in matlab run the following to get button press regressors and the emptyEV
+KB2fslEvent
+% in terminal, do the following to chage the stats0*.fsf so that empty event is set as empty
+for f in `cat subjlist.txt`; do
+./scripts_claire/set_emptyEV_stats.sh ${f}
+done
+
+%% I stop using this method because it resulted in different number fo regressor for each subject.
+%% delete old confound txt and rerun the following scripts
+%% generate motion outliers confound matrix
+% for f in `find -name filtered_func_data.nii.gz`
+% do
+% fsl_motion_outliers --nomoco -i ${f} -o ${f/.nii.gz/_motionOutliers} -s ${f/.nii.gz/_motionOutliers}
+% done
+
+% first level model
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+./analyze_stats.sh
+done
+
+% check individual results.
+% check the cutoff for nccu and nymu respectively
+% group glm
+
+% map to mni space
+for f in `cat subjlist.txt`; do
+cd /jukebox/hasson/claire/tennis/subjects/${f}
+chmod +x ./scripts/apply-transform_res4D.sh
+submit ./scripts/apply-transform_res4D.sh
+done
+
+%%%the following is for isc
+% nii.gz to nii
+for f in `cat subjlist.txt`; do
+ fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc01.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_coop1_trans_res4d.nii
+  fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc02.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_coop2_trans_res4d.nii
+   fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc03.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_comp1_trans_res4d.nii
+    fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc04.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_comp2_trans_res4d.nii
+	 fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc05.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_basecoop_trans_res4d.nii
+	  fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc06.feat/stats/trans_res4d.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_basecomp_trans_res4d.nii
+done
+
+for f in `cat subjlist.txt`; do
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc01.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_coop1_trans_filtered_func.nii
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc02.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_coop2_trans_filtered_func.nii
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc03.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_comp1_trans_filtered_func.nii
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc04.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_comp2_trans_filtered_func.nii
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc05.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_basecoop_trans_filtered_func.nii
+fslchfiletype NIFTI /jukebox/hasson/claire/tennis/subjects/${f}/analysis/preproc/preproc06.feat/trans_filtered_func_data.nii.gz /jukebox/hasson/claire/tennis/intersubj/inputs/${f}_basecomp_trans_filtered_func.nii
+done
+
+% voxelwise isc
+submit -N isc isc_batch_claire.m
+% grup mean and sd
+submit -hold_jid isc -N pregroup corrmap2nii4D.sh
+submit -hold_jid pregroup mean_corrmap.m
+
+% roiwise isc and the graph
+submit -hold_jid isc -N isc_roi isc_roi_batch_claire.m
+submit -hold_jid isc_roi plot_roi_timecourse.m
+submit -N roilagged -hold_jid isc_roi roicorr_lagged.m
+submit -hold_jid roilagged plot_roicorr_lagged.m
+
+%%%%%% to link file
+%%%%% remember to cd to the target folder
+for f in `cat subjlist.txt`; do
+cd ./subjects/${f}/
+ln -s -f ../../prototype/link/analyze_melodic.sh analyze_melodic.sh
+cd ../..
+done

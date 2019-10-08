@@ -1,0 +1,36 @@
+cd /jukebox/hasson/claire/tennis/data/Juelich/
+f='V1_R'
+flirt -in ${f}_2mm.nii.gz -ref ../MNI152_T1_3mm_brain -applyxfm -usesqform -out ${f}_3mm.nii.gz
+fslmaths ${f}_3mm.nii.gz -thr 20 -bin ${f}_3mm_thr20mask.nii.gz
+fslchfiletype NIFTI ${f}_3mm_thr20mask.nii.gz ${f}_3mm_thr20mask.nii
+
+fslmaths V5_R_3mm_thr20_mask.nii -bin -roi 30 -1 -1 -1 -1 -1 -1 -1 V5_R_R_3mm_thr20_mask.nii
+fslmaths V5_R_3mm_thr20_mask.nii -bin -roi -1 30 -1 -1 -1 -1 -1 -1 V5_R_L_3mm_thr20_mask.nii
+
+for f in `ls *2mm.nii.gz` 
+do
+outname=` echo ${f} | sed -e s/2mm/3mm/g`
+flirt -in ${f} -ref ../MNI152_T1_3mm_brain -applyxfm -usesqform -out ${outname}
+done
+
+
+for f in `ls *3mm.nii.gz` 
+do
+outname=` echo ${f} | sed -e s/3mm/3mm_thr20mask/g`
+fslmaths ${f} -thr 20 -bin ${outname}
+done
+
+for f in `ls *3mm_thr20mask.nii.gz` 
+do
+outnamel=` echo ${f} | sed -e s/3mm/L_3mm/g`
+outnamer=` echo ${f} | sed -e s/3mm/R_3mm/g`
+
+fslmaths ${f} -bin -roi 30 -1 -1 -1 -1 -1 -1 -1 ${outnamer}
+fslmaths ${f} -bin -roi -1 30 -1 -1 -1 -1 -1 -1 ${outnamel}
+done
+
+for f in `ls *{L,R}_3mm_thr20mask.nii.gz` 
+do 
+outname=` echo ${f} | sed -e s/nii.gz/nii/g`
+ fslchfiletype NIFTI ${f} ${outname}
+ done

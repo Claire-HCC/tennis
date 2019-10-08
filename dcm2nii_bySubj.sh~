@@ -1,0 +1,9 @@
+#!/bin/bash
+# dcm2nii_bySubj.sh 0817_Pair4
+# input subject directory, this script automatically convert dicom to nii.gz for each subfolder.
+# the output nifti files are saved in folder nii
+for path in /jukebox/hasson/claire/tennis/MRI/subjects/dcm/"$1"/*; do 
+[ -d "${path}" ] || continue 
+for f in $path/*; do 
+dcm2nii -d n -i n -o /jukebox/hasson/claire/tennis/MRI/subjects/nii/ $f
+done
